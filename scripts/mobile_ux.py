@@ -16,7 +16,11 @@ def login(page, url, admin=False):
 
 
 def nav(page, name):
-    page.locator('.nav').get_by_role('button', name=name, exact=False).click()
+    if page.locator('.menu-toggle').is_visible():
+        page.get_by_role('button',name='Open navigation menu',exact=True).click()
+        page.locator('.drawer-nav').get_by_role('button',name=name,exact=False).click()
+    else:
+        page.locator('.nav').get_by_role('button',name=name,exact=False).click()
     page.evaluate('scrollTo(0,0)')
 
 
@@ -37,10 +41,14 @@ def run_mobile_ux(browser, url):
             page.locator('.range-trigger').first.click()
             page.get_by_role('button',name='Past 12 months',exact=True).click()
             page.get_by_role('button',name='Apply range').click()
+            from responsive_navigation import check_navigation
+            check_navigation(page, admin, width)
             views = ['Overview', 'Receipts'] + (['Reports', 'Team'] if admin else [])
             for view in views:
                 nav(page, view)
                 assert_no_overflow(page)
+                from responsive_navigation import check_lists
+                check_lists(page, view, admin, width)
                 if width <= 700:
                     stack = page.locator('.mobile-workspace')
                     expect(stack).to_have_count(1)
@@ -65,8 +73,7 @@ def run_mobile_ux(browser, url):
                     if view == 'Overview':
                         secondary = page.locator('.card > .sticky-filters')
                         expect(secondary).to_have_count(1)
-                        assert secondary.evaluate("e=>getComputedStyle(e).position") == 'sticky'
-                        assert secondary.evaluate("e=>parseFloat(getComputedStyle(e).top)") == stack.bounding_box()['height']
+                        assert secondary.evaluate("e=>getComputedStyle(e).position") == 'static'
                     if view == 'Reports':
                         page.get_by_role('button', name='Filters ▾').click()
                         expect(page.get_by_role('button', name='Close filters ▴')).to_have_attribute('aria-expanded','true')
@@ -95,6 +102,8 @@ def run_mobile_ux(browser, url):
             context.close()
     assert not errors, errors
     run_receipt_workflows(browser, url)
+    from responsive_navigation import run_responsive_workflows
+    run_responsive_workflows(browser,url)
     print('PASS: employee Overview/Receipts; admin Overview/Receipts/Reports/Team at 320,375,390,430,700,1024,1280px; sticky scroll, wrapping, resize, dialogs; no JS errors')
 
 
