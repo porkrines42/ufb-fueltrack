@@ -44,6 +44,8 @@ try:
         page.set_viewport_size({"width": 390, "height": 844})
         assert page.locator("h1").is_visible()
         assert not errors, errors
+        from mobile_ux import run_mobile_ux
+        run_mobile_ux(browser, f"http://127.0.0.1:{server.server_port}/")
         browser.close()
         print("PASS: branding, employee/admin login, dashboards, upload form, receipts, mobile; no JS errors")
 finally:
