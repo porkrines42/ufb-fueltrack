@@ -38,15 +38,16 @@ def run_mobile_ux(browser, url):
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.on('dialog', lambda dialog: errors.append('Unexpected native dialog: '+dialog.message) or dialog.dismiss())
             login(page, url, admin)
-            page.locator('.range-trigger').first.click()
-            page.get_by_role('button',name='Past 12 months',exact=True).click()
-            page.get_by_role('button',name='Apply range').click()
+            from filter_panel import set_date_range
+            set_date_range(page)
             from responsive_navigation import check_navigation
             check_navigation(page, admin, width)
             views = ['Overview', 'Receipts'] + (['Reports', 'Team'] if admin else [])
             for view in views:
                 nav(page, view)
                 assert_no_overflow(page)
+                from filter_panel import check_mobile_panel
+                check_mobile_panel(page,view,admin,width)
                 from responsive_navigation import check_lists
                 check_lists(page, view, admin, width)
                 if width <= 700:
@@ -61,26 +62,13 @@ def run_mobile_ux(browser, url):
                             assert abs(box['y']) < 1, (width, admin, view, box)
                         assert stack.evaluate("e=>getComputedStyle(e).backgroundColor") == 'rgb(245, 247, 250)'
                         header = stack.locator('.top').bounding_box()
-                        toolbar = stack.locator('.sticky-filters,.report-sticky')
-                        if toolbar.count():
-                            bar = toolbar.bounding_box()
-                            assert abs(header['y']+header['height']-bar['y']) < 1, (view, header, bar)
-                            assert toolbar.evaluate("e=>getComputedStyle(e).backgroundColor") == 'rgb(245, 247, 250)'
-                            assert bar['y']+bar['height'] <= height, (view, bar)
+                        if view != 'Team':
+                            launcher=page.locator('.mobile-filter-launcher')
+                            assert launcher.evaluate("e=>getComputedStyle(e).position") == 'static'
+                            assert launcher.evaluate("e=>!e.closest('.mobile-workspace')")
                         # The header paints across both viewport edges, sealing side gaps.
                         if abs(box['y']) < 1:
                             assert page.evaluate("document.elementFromPoint(1,2).closest('.mobile-workspace') !== null")
-                    if view == 'Overview':
-                        secondary = page.locator('.card > .sticky-filters')
-                        expect(secondary).to_have_count(1)
-                        assert secondary.evaluate("e=>getComputedStyle(e).position") == 'static'
-                    if view == 'Reports':
-                        page.get_by_role('button', name='Filters ▾').click()
-                        expect(page.get_by_role('button', name='Close filters ▴')).to_have_attribute('aria-expanded','true')
-                        assert_no_overflow(page)
-                        page.locator('#reportFilterControls .multi-trigger').first.click()
-                        assert_no_overflow(page)
-                        page.get_by_role('button', name='Close filters ▴').click()
                 else:
                     expect(page.locator('.mobile-workspace')).to_have_count(0)
                     assert page.locator('.top').evaluate("e=>getComputedStyle(e).position") == 'sticky'
@@ -90,20 +78,15 @@ def run_mobile_ux(browser, url):
             expect(page.locator('.card > .sticky-filters')).to_have_count(1)
             page.set_viewport_size({"width": 390, "height": 844})
             expect(page.locator('.mobile-workspace > .sticky-filters')).to_have_count(1)
-            page.locator('.range-trigger').first.click()
-            page.locator('#pickerFrom').fill('')
-            page.locator('#pickerTo').fill('')
-            page.locator('#pickerFrom').dispatch_event('change')
-            page.locator('#pickerTo').dispatch_event('change')
-            page.get_by_role('button', name='Apply range').click()
-            expect(page.locator('.app-notice.error')).to_contain_text('Select both')
-            page.keyboard.press('Escape')
-            expect(page.locator('dialog[open]')).to_have_count(0)
+            from filter_panel import check_mobile_panel
+            check_mobile_panel(page,'Receipts',admin,390)
             context.close()
     assert not errors, errors
     run_receipt_workflows(browser, url)
     from responsive_navigation import run_responsive_workflows
     run_responsive_workflows(browser,url)
+    from filter_panel import run_filter_workflows
+    run_filter_workflows(browser,url)
     print('PASS: employee Overview/Receipts; admin Overview/Receipts/Reports/Team at 320,375,390,430,700,1024,1280px; sticky scroll, wrapping, resize, dialogs; no JS errors')
 
 
