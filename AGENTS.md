@@ -15,14 +15,24 @@ For an installed system Chromium, set `CHROMIUM_PATH=/usr/bin/chromium` instead
 of downloading a browser. Tests use a fresh browser context and local server.
 
 When the user requests implementation and delivery, create a branch and pull
-request. If authenticated GitHub access permits it, inspect repository permissions,
-auto-merge support, and the main branch's effective protection/rulesets. Require
-the `static-checks` status check on main. Once the policy is verified, request
-GitHub native auto-merge with `gh pr merge --auto --squash --match-head-commit SHA`.
-Use the actual reviewed/tested PR head SHA. Respect required reviews and every
-other required check. Never force merge, use admin bypass, disable checks, or
-remove protection. If native auto-merge is unsupported or settings cannot be
-verified, report the exact blocker; do not fall back to an unconditional merge.
+request. Run the automated tests and inspect available PR check results. Request
+GitHub native auto-merge through the GitHub connector. Administrative read access
+to branch protection or rulesets is not a prerequisite: if those reads return
+403, let GitHub enforce the effective policy when accepting and executing the
+native auto-merge request. Use the CLI when available if an explicit squash method
+and head pin are needed:
+`gh pr merge --auto --squash --match-head-commit SHA`.
+Use the actual reviewed/tested PR head SHA; if it changes, inspect the changes and
+check the new head's test results. The connector may infer the merge method from
+repository settings and may not support head pinning; verify the PR head before
+and after requesting auto-merge.
+
+Keep `static-checks` required on main and respect all GitHub-enforced required
+checks, branch protections, and approvals. Native auto-merge must wait for those
+requirements; never force merge, use admin bypass, disable checks, remove
+protection, or substitute an unconditional merge. If the native auto-merge request
+fails, report the exact API or permission error. Missing administrative read
+access alone must not prevent attempting native auto-merge.
 
 After merge, monitor Checks and Deploy Pages for that commit. Report deployment
 success only after GitHub confirms it. Do not claim a local test or Git push
